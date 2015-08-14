@@ -1,0 +1,6 @@
+=except
+    # another test
+    /etc
+    # testing something else
+    /var
+    # wah wah

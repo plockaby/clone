@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### dovecot: /etc/init.d/dovecot restart"
+/etc/init.d/dovecot restart
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### sysctl: /sbin/sysctl"
+/sbin/sysctl -p
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### opendkim: /etc/init.d/opendkim restart"
+/etc/init.d/opendkim restart
+

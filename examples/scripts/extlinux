@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### extlinux: extlinux-update"
+/usr/sbin/extlinux-update
+

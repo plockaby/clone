@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### ssh: /etc/init.d/ssh restart"
+/etc/init.d/ssh restart
+

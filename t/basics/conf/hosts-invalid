@@ -1,0 +1,5 @@
+EXAMPLE_NS (example_ns) = {
+
+_HOSTS_ = {
+    example/r~ [example.com] = $EXAMPLE_NS
+}

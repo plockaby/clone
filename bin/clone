@@ -1,0 +1,780 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use FindBin ();
+use lib "${\$FindBin::RealBin}/../lib";
+
+use Pod::Usage;
+use Getopt::Long;
+use File::Which qw(which);
+use IO::Interactive qw(is_interactive);
+use Storable qw(dclone);
+use Config::Tiny;
+use Time::HiRes;
+use Try::Tiny;
+
+sub main {
+    my $hostname = shift;
+    my $action = shift;
+    my %args = @_;
+
+    my $options = dclone(\%args);
+    $options->{'hosts'} ||= "${\$FindBin::RealBin}/../conf/hosts";
+    $options->{'config'} ||= "${\$FindBin::RealBin}/../conf/config.ini";
+    $options->{'force'} //= 0;
+    $options->{'console'} //= 0;
+    $options->{'paranoid'} //= 0;
+
+    # if we are tied to a tty then don't be quiet by default
+    # but if we ARE NOT tied a tty then be quiet by default
+    $options->{'quiet'} = (is_interactive() ? 0 : 1) unless defined($options->{'quiet'});
+
+    # if we are tied to a tty then show which sources are missing by default
+    $options->{'flag-missing-sources'} = (is_interactive() ? 1 : 0) unless defined($options->{'flag-missing-sources'});
+
+    my $config_file = $options->{'config'};
+    die "ERROR: config file does not exist: ${config_file}\n" unless (-e $config_file);
+    die "ERROR: config file is not readable: ${config_file}\n" unless (-r $config_file);
+
+    # parse the config file and assign more defaults
+    my $config = Config::Tiny->read($config_file);
+    $options->{'user'}               = $config->{'global'}->{'user'}   || 'ref';
+    $options->{'home'}               = $config->{'global'}->{'home'}   || '/usr/local/' . $options->{'user'};
+    $options->{'runner'}->{'ssh'}    = $config->{'runner'}->{'ssh'}    || which('ssh');
+    $options->{'runner'}->{'rsync'}  = $config->{'runner'}->{'rsync'}  || which('rsync');
+    $options->{'runner'}->{'sudo'}   = $config->{'runner'}->{'sudo'}   || which('sudo');
+    $options->{'paths'}->{'sources'} = $config->{'paths'}->{'sources'} || "${\$FindBin::RealBin}/../sources";
+    $options->{'paths'}->{'builds'}  = $config->{'paths'}->{'builds'}  || "${\$FindBin::RealBin}/../builds";
+    $options->{'paths'}->{'logs'}    = $config->{'paths'}->{'logs'}    || "${\$FindBin::RealBin}/../logs";
+    $options->{'paths'}->{'tools'}   = $config->{'paths'}->{'tools'}   || "${\$FindBin::RealBin}/../tools";
+
+    # parse hosts and get our host out of it
+    require App::Clone::Config;
+    my $hosts = App::Clone::Config->load($options->{'hosts'}, $options);
+    die "ERROR: could not load hosts\n" unless defined($hosts);
+    my $host = $hosts->host($hostname);
+    die "ERROR: not a configured host: ${hostname}\n" unless defined($host);
+
+    info($host, $options) if ($action eq "info");
+    build($host, $options) if ($action eq "build" || $action eq "verify" || $action eq "update");
+    verify($host, $options) if ($action eq "verify" || $action eq "verify!");
+    update($host, $options) if ($action eq "update" || $action eq "update!");
+
+    return 0;
+}
+
+sub info {
+    my ($host, $options) = @_;
+
+    for my $path (sort @{$host->paths()}) {
+        # if we aren't showing whether a source exists then all sources should be
+        # considered to exist!
+        my $exists = (!$options->{'flag-missing-sources'} || -e "${\$options->{'paths'}->{'sources'}}/${path}");
+        printf(" %s %s\n", ($exists ? " " : "!"), $path);
+    }
+    if ($options->{'flag-missing-sources'}) {
+        print "\n";
+        print "! source does not exist\n";
+    }
+
+    return;
+}
+
+sub build {
+    my ($host, $options) = @_;
+    my $timer = Time::HiRes::time;
+
+    try {
+        require App::Clone::Logger;
+        my $logger = App::Clone::Logger->new($host->hostname() . '_build', $options);
+        $options->{'stdout'} = $logger->stdout();
+        $options->{'stderr'} = $logger->stderr();
+        print "log: ${\$logger->file()}\n";
+    } catch {
+        print $_ if defined($_);
+        print "error creating log file so writing logs to console instead\n";
+    };
+
+    # move all the files into place
+    require App::Clone::Linker;
+    my $linker = App::Clone::Linker->new($options);
+    $linker->run($host);
+
+    # find all filters and join them together
+    require App::Clone::Filter;
+    my $filter = App::Clone::Filter->new($options);
+    $filter->run($host);
+
+    printf("completed in %.4f seconds\n", (Time::HiRes::time - $timer));
+    return;
+}
+
+sub verify {
+    my ($host, $options) = @_;
+    my $timer = Time::HiRes::time;
+
+    try {
+        require App::Clone::Logger;
+        my $logger = App::Clone::Logger->new($host->hostname() . '_verify', $options);
+        $options->{'stdout'} = $logger->stdout();
+        $options->{'stderr'} = $logger->stderr();
+        print "log: ${\$logger->file()}\n";
+    } catch {
+        print $_ if defined($_);
+        print "error creating log file so writing logs to console instead\n";
+    };
+
+    require App::Clone::Runner;
+    my $runner = App::Clone::Runner->new($options);
+    $runner->verify($host);
+
+    printf("completed in %.4f seconds\n", (Time::HiRes::time - $timer));
+    return;
+}
+
+sub update {
+    my ($host, $options) = @_;
+    my $timer = Time::HiRes::time;
+
+    try {
+        require App::Clone::Logger;
+        my $logger = App::Clone::Logger->new($host->hostname() . '_update', $options);
+        $options->{'stdout'} = $logger->stdout();
+        $options->{'stderr'} = $logger->stderr();
+        print "log: ${\$logger->file()}\n";
+    } catch {
+        print $_ if defined($_);
+        print "error creating log file so writing logs to console instead\n";
+    };
+
+    require App::Clone::Runner;
+    my $runner = App::Clone::Runner->new($options);
+    $runner->update($host);
+
+    printf("completed in %.4f seconds\n", (Time::HiRes::time - $timer));
+    return;
+}
+
+unless (caller) {
+    my %options = ();
+    GetOptions(
+        \%options,
+        "hosts=s",
+        "config=s",
+        "flag-missing-sources!",
+        "force|f",
+        "console|c",
+        "paranoid|p",
+        "quiet!",
+        "test",
+        "help|h",
+    );
+    pod2usage({ '-verbose' => 1 }) if $options{'help'};
+
+    # get the host we want to process
+    my $hostname = shift(@ARGV);
+    my $action = shift(@ARGV);
+
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing hostname." }) unless defined($hostname);
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing action." }) unless defined($action);
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: invalid action: ${action}" }) unless ($action =~ /^(?:verify|verify!|update|update!|info|build)$/x);
+
+    exit(try {
+        # only root can read all the files in the sources
+        die "ERROR: you must be root to run this program\n" unless ($< == 0);
+
+        return main($hostname, $action, %options);
+    } catch {
+        my $error = (defined($_) ? $_ : "unknown error");
+        chomp($error);
+        warn "${error}\n";
+        return 1;
+    });
+}
+
+1;
+
+=head1 NAME
+
+clone
+
+
+=head1 USAGE
+
+    clone hostname [ info | build | verify | verify! | update | update! ]
+
+
+=head1 DESCRIPTION
+
+This program assembles and overlays multiple directory trees onto remote
+servers using C<rsync>. It makes it easy to build something once and ensure
+that it gets deployed to multiple locations exactly as intended. Use it to
+control things in C</srv/www> or C</usr/local> or even C</etc>.
+
+For example, say you want to compile Perl once and just deploy it to your
+servers but man are RPMs and debs annoying. So you compile it on a build host,
+tar it up, then plop it into C</clone/sources/perl-5.20.3>. Alongside that you
+have C</clone/sources/perl-support> which has things like symlinks for
+C</usr/local/bin/perl> so that the next time you don't need to remember to
+recreate all the symlinks and generic configuration files after building the
+new version of Perl. So you write:
+
+    PERL = {
+        software/perl-support
+        PERL-5.20.3 = {
+            software/perl-5.20.3
+        }
+    }
+
+And then configure it to go to all of your hosts:
+
+    COMMON_SOFTWARE = {
+        $PERL-5.20.3
+        $PYTHON-2.7.10
+        $PYTHON-3.4.3
+    }
+
+And then you configure each host:
+
+
+    FOO_NS = {
+        common/local
+        $COMMON_BASE
+        $COMMON_SOFTWARE
+    }
+
+    _HOSTS_ = {
+        foo/r~ [debian8 @foo.example.org] = $FOO_NS
+    }
+
+And then you deploy to your hosts and then each host gets exactly the same
+version of everything installed on it. And if someone goes messing with Perl on
+one of your hosts then those changes will get rolled back the next time the
+host is updated. So you can guarantee that you've put everything on the host
+that needs to be there and that only what you put there is what remains.
+
+
+=head1 ARGUMENTS
+
+=over
+
+=item hostname
+
+The name of the server to perform actions against. This name comes from the
+hosts configuration file.
+
+=item action
+
+The action to perform on the given host. This can be one of the following:
+
+=over
+
+=item info
+
+Shows what sources make up the host.
+
+=item build
+
+This will compile all of the pieces together to build what will be sent to a
+host.
+
+=item verify
+
+This will compile all of the pieces together to build what will be sent to a
+host and then verify the list of changes that will be made to the host. No
+changes are actually made.
+
+=item verify!
+
+This will skip the build component and just verify the list of changes that
+will be made to the host based on the last build. No changes are actually made.
+
+=item update
+
+This will compile all of the pieces together to build what will be sent to a
+host and then send the changes to the host. B<WARNING> This will make changes
+to the remote host!
+
+=item update!
+
+This will skip the build component and send the changes to the host based on
+the last build. B<WARNING> This will make changes to the remote host!
+
+=back
+
+=back
+
+
+=head1 OPTIONS
+
+=over
+
+=item -q|--quiet|--no-quiet
+
+This will quiet things down. Warnings will not be shown. The default is to show
+warnings when connected to a terminal and not show warnings when connected to
+something other than a terminal such as a pipe. Warnings can be shown when not
+connected to a terminal by using C<--no-quiet>.
+
+=item -p|--paranoid
+
+Enable rsync checksums. Normally rsync will determine whether to update a file
+by comparing the file size and the modification time of the local and remote
+file. This flag will instead use the MD5 of the local and remove file. Using
+this flag will make rsync run signficantly longer.
+
+=item -f|--force
+
+Force an update to the remote host. For example, if the host has the C<X> flag
+set in the hosts configuration file then the host will only be updated if
+forced.
+
+=item -c|--console
+
+Logs are written to the logs directory for all build, verify, and update
+actions. If this flag is set then the logs will also be simultaneously written
+to the console.
+
+=item -h|--help
+
+Shows this message.
+
+=back
+
+
+=head1 PREREQUISITES
+
+There is one specific external software prerequisite. You must have rsync
+version 3.1.0 or greater installed on the master and all slaves. Some of the
+options used by this program depend upon that version to ensure that files are
+copied to slaves in the most accurate way.
+
+
+=head1 INSTALLATION
+
+Installation should be done as root. If it's not then the clone program will
+not be able to do things like change file ownership. Thus, all the below
+commands should be run as root.
+
+
+=head2 ON ALL SERVERS
+
+It is assumed that your hosts restrict SSH connections from root. Based on that
+assumption, a user needs to be created on all systems to initiate the SSH
+connection over which rsync will run. This should be the same user on all
+systems and the user should have the same user and group id on all systems.
+For example:
+
+    addgroup --gid 123 --system ref
+    adduser --uid 123 --system --home /usr/local/ref --disabled-password --shell /bin/bash --ingroup ref ref
+
+The user needs to be able to run rsync on the remote host through sudo. This is
+complicated by the way rsync works when it calls itself on the remote host. To
+work around this we are going to set an effective alias for rsync to force it
+to run through sudo. To that end, set the user's C</usr/local/ref/.bashrc> file
+like this:
+
+    rsync() (
+       /usr/bin/sudo /usr/bin/rsync $@
+    )
+
+The user should be allowed to use sudo to run rsync and the post-processing
+program like this by creating C</etc/sudoers.d/ref> and putting this in it:
+
+    Cmnd_Alias REF=/usr/bin/rsync, /usr/local/bin/rsync, /usr/local/ref/tools/process-updates
+    ref ALL=NOPASSWD:REF
+
+Ensure some file permissions are updated:
+
+    chown ref:ref /usr/local/ref/.bashrc
+    chmod 0440 /etc/sudoers.d/ref
+
+
+=head2 ON MASTER SERVER
+
+All files need to have their permissions updated:
+
+    mkdir /usr/local/ref/.ssh
+    chown ref:ref /usr/local/ref/.ssh
+    chmod 700 /usr/local/ref/.ssh
+
+SSH keys need to be created:
+
+    ssh-keygen -b 4096 -N "" -f /usr/local/ref/.ssh/id_rsa
+    chown ref:ref /usr/local/ref/.ssh/id_rsa*
+    cp /usr/local/ref/.ssh/id_rsa.pub /usr/local/ref/.ssh/authorized_keys
+    chown ref:ref /usr/local/ref/.ssh/authorized_keys
+    chmod 600 /usr/local/ref/.ssh/authorized_keys
+    cp /usr/local/ref/.ssh/id_rsa* /root/.ssh/
+
+Note on the master server that the SSH keys for C<ref> should be the same as
+C<root> on the or things will not work. The public SSH key needs to be sent to
+the cloned servers:
+
+    scp -p /usr/local/ref/.ssh/authorized_keys joe@clone:/tmp
+
+
+=head2 ON ALL CLONED SERVERS
+
+The public SSH key needs its permissions updated:
+
+    mkdir /usr/local/ref/.ssh
+    chown ref:ref /usr/local/ref/.ssh
+    chmod 700 /usr/local/ref/.ssh
+    mv ~joe/authorized_keys /usr/local/ref/.ssh/
+    chown ref:ref /usr/local/ref/.ssh/authorized_keys
+    chmod 600 /usr/local/ref/.ssh/authorized_keys
+
+
+=head2 ON MASTER SERVER
+
+The application does not need to be installed like a regular Perl module. All
+that needs to be done is to copy the program where you want it and run it.
+
+
+=head1 CONFIGURATION
+
+
+=head2 config.ini
+
+A configuration file in C</conf/config.ini> needs to exist. This defines basic
+functionality of the clone program. There are no required options. Options in
+this file are defined simply as C<foo = bar>. Any line in this file beginning
+with a # (hash) will be ignored as a comment.
+
+Here is an example of a configuration file:
+
+    user = ref
+    home = /usr/local/ref
+
+    [runner]
+    ssh = /usr/bin/ssh
+    rsync = /usr/local/bin/rsync
+    sudo = /usr/bin/sudo
+
+    [paths]
+    sources = /clone/sources
+    builds = /clone/builds
+    logs = /clone/logs
+    tools = /clone/tools
+
+Here is an explanation of each option:
+
+=over
+
+=item user
+
+This defines the unprivileged user over which all SSH connections will be made.
+The default is to connect as user C<ref>.
+
+=item home
+
+This defines the path to the unprivileged user's home directory on the remote
+server. The default is C</usr/local/E<lt>userE<gt>>.
+
+=item key
+
+This defines the path to the private SSH key for the unprivileged user over
+which all SSH connections will be made. The default is
+C<E<lt>homeE<gt>/.ssh/id_rsa>.
+
+=item ssh
+
+This is the path to the SSH client. The default is C</usr/bin/ssh>.
+
+=item rsync
+
+The path to the rsync client. The default is C</usr/bin/rsync>.
+
+=item sudo
+
+The path to the sudo program. The default is C</usr/bin/sudo>.
+
+=item sources
+
+This is the path to the source trees. The default is to look in the C<sources>
+directory found in C<$FindBin::RealBin/../>.
+
+=item builds
+
+This is the path where all of the trees will be assembled for each host. The
+default is to use the C<builds> directory found in C<$FindBin::RealBin/../>.
+
+=item logs
+
+This is the path where log files will be stored on each run. The default is to
+write logs to the C<logs> directory found in C<$FindBin::RealBin/../>.
+
+=item tools
+
+This is the path to tools that need to be deployed to each host. Anything found
+in the path defined here will be deployed to C<E<lt>homeE<gt>/tools>. The
+default is to use C<$FindBin::RealBin/../>.
+
+=back
+
+
+=head2 hosts
+
+A configuration file in C</conf/hosts> also needs to exist. This configuration
+file defines which sources to go which hosts. This file can be thought of to be
+a programming language of its own containing variables and definitions.
+Variables can reference other variables to build composites.
+
+Variables and definitions are expanded lazily so order should not matter. There
+is only one required variable: C<_HOSTS_>. This contains the definitions of all
+hosts and which sources they will receive. For example:
+
+    _HOSTS_ = {
+        foo/r [debian8 @foo.example.com] = $BAR_DEBIAN8_NS
+        bar/r [debian7 @bar.example.com] = $BAR_DEBIAN7_NS
+    }
+
+The format of each line in the hosts definition can be read:
+
+    name/flags [platform @fqdn] = $VAR
+
+There are several parts to this defintion:
+
+=over
+
+=item C<name>
+
+This is the name that will be used to refer to the host. This is used when
+calling C<clone>, like this: C<clone name build>.
+
+=item C<flags>
+
+These are flags for the host. The list of flags may contain nothing. There are
+also two options for flags that affect how hosts are updated:
+
+=over
+
+=item C<X>
+
+If this flag is set then the host is disabled and neither a verify nor an
+update is allowed without the use of the C<--force> flag.
+
+=item C<~>
+
+Normally this program will effectively take control of the entire file system
+for a host and any file that is neither excepted nor controlled by C<clone>
+will be removed from the host. If this flag is set then only an "overlay" will
+be done and no files will be removed from the remote host by default. If you
+set this flag but want to selectively choose certain directories that I<are>
+controlled entirely by C<clone> then you can use the C<directory> option in a
+filter for the host.
+
+=back
+
+=item C<platform>
+
+This is the type of platform on which the host runs. This can be any arbitrary
+string but it is used to automatically load a source tree based on the platform
+and host name. For example, if the platform is C<debian8> and the hostname is
+C<foo> then the source tree C<debian8/foo> would automatically be added to the
+list of source trees.
+
+=item C<fqdn>
+
+This is the fully qualified domain name of the host. This will be looked up in
+DNS during compilation of the hosts configuration file so it had better resolve
+to something or your hosts file will not compile correctly.
+
+=back
+
+Finally, C<$VAR> is the variable that defines the sources that will comprise
+the host. To create variables to build a host one can start easy with something
+like:
+
+    FOO_DEBIAN7_NS = foo/bar
+
+This would build the host C<ref> with files from C<foo/bar>. To create a more
+complex definition one can include multiple values in a variable with something
+like this:
+
+    FOO_DEBIAN7_NS = {
+        foo/bar
+        common/asdf
+        common/test
+    }
+
+This would combine all files from each C<foo/bar>, C<common/asdf>, and
+C<common/test>. One could also include variables instead. For example, the
+following is functionally equivalent to the previous example:
+
+    FOO = foo/bar
+    REF_DEBIAN7_NS = {
+        $FOO
+        common/asdf
+        common/test
+    }
+
+As a shortcut, a parenthetical can be added after the variable definition and
+this will postfix whatever is in the parenthetical to the value. Again, this
+example would be functionally equivalent to the two previous examples:
+
+    FOO = foo/bar
+    REF_DEBIAN7_NS (asdf) = {
+        $FOO
+        common/
+        common/test
+    }
+
+Multiple arguments could be provided in the parenthetical as well. The next
+example would be I<almost> functionally equivalent to the three previous
+examples:
+
+    FOO = foo/bar
+    REF_DEBIAN7_NS (asdf test) = {
+        $FOO
+        common/
+    }
+
+However while previous example will search for C<common/asdf> and
+C<common/test>,  C<$FOO> will not be expanded to include either C<asdf> or
+C<test>.
+
+Variables can also be embedded in other variables, too. For example:
+
+    FOO = {
+        common/asdf
+        BAR = {
+            common/test
+        }
+        BAZ = common/fdsa
+    }
+
+The previous example would be functionally equivalent to:
+
+    FOO = {
+        common/asdf
+    }
+
+    BAR = {
+        $FOO
+        common/test
+    }
+
+    BAZ = {
+        $FOO
+        common/fdsa
+    }
+
+Finally, using the directory expansion does apply to embedded variables. For
+example:
+
+    FOO (bar) = {
+        common/
+        FOO_BAZ = baz/
+        FOO_BAT = bat/
+    }
+
+The previous example would be functionally equivalent to:
+
+    FOO = {
+        common/bar
+    }
+
+    FOO_BAZ = {
+        common/bar
+        baz/bar
+    }
+
+    FOO_BAT = {
+        common/bar
+        bat/bar
+    }
+
+
+=head1 FILTER FILES
+
+The default configuration is to copy all files to the remote host and remove
+any files that aren't controlled by C<clone>. You can configure a host such
+that files that aren't controlled by C<clone> aren't removed by setting the
+C<~> flag in the hosts configuration file. This can also be changed or more
+finely controlled by putting filter files into the root of source trees.
+
+The filter file should be named with the format C<filter.foo> where C<foo> can
+be anything as long as it is unique among all source directories that comprise
+a host. An example file name might be C</clone/sources/common/asdf/filter.foo>.
+
+There are five sections that can be used in a filter file.
+
+=over
+
+=item =directory
+
+This defines directory paths that will be kept synchronized on the host. That
+means that when a host is updated then anything under the directory that is not
+found in the host's sources on the master will be removed from the host. This
+section means nothing unless the host has the C<~> flag set because the default
+configuration for C<clone> is such that every directory will be kept fully
+synchronized.
+
+=item =except
+
+This defines things to exclude from being synced on both the source and the
+destination. That means that paths in this section won't be removed from the
+destination and they won't be sent from the master to the host. The pattern
+should match the acceptable formats for C<rsync>. There is no guaranteed order
+to how these will be put into the filters.
+
+=item =perishable
+
+This defines things to exclude from removing but that will be removed if they
+are the last thing in a directory and are preventing the directory from being
+removed. The same applies here that applies to C<except>: the pattern should
+match the acceptable formats for C<rsync> and there is no guaranteed order to
+how these will be put into the filters.
+
+=item =command C<keyword>
+
+For all of the paths under this section, if any of them change, the script
+named C<keyword> will be run at the end of the update. An environment variable
+named C<FILES> will be passed to the script containing a list of all files that
+triggered the script, delimited with a colon.
+
+The actual programs can be found under C</tools/scripts>. Everything under
+C</tools> will be deployed to all remote hosts under C<E<lt>homeE<gt>/tools>.
+
+As an example, if it this were configured:
+
+    =command foobar
+        /foo/bar/.*
+
+Then anything under the path C</foo/bar/> that changes will cause the program
+named C<E<lt>homeE<gt>/tools/scripts/foobar> to be called when updates are
+finished.
+
+=back
+
+An example filter file might look like this:
+
+    =directory
+        /srv
+
+    =except
+        /srv/foobar
+        .*/.toprc
+
+    =command bind
+        /etc/bind/.*
+
+The above example will synchronize all files in C</srv> and remove files on the
+host that weren't found in the configured sources, except C</srv/foobar> which
+will be left in place if found. Additionally, if any file is matched by the
+regular expression C</etc/bind/.*>, such as C</etc/bind/named.conf.local> or
+C</etc/bind/named.conf.options> for example, then the program called C<bind>
+found in C<E<lt>homeE<gt>/tools/scripts> will be run.
+
+
+=head1 CREDITS
+
+This project is based on a system called "ref" used by the University of
+Washington's Information Technology department. The code you see here has been
+developed by Paul Lockaby and Eric Horst.
+
+=cut

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### ldconfig: /sbin/ldconfig"
+/sbin/ldconfig
+

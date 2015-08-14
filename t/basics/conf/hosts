@@ -1,0 +1,20 @@
+EXAMPLE1_NS (example_ns) = {
+    test/foo
+    test/bar
+}
+
+EXAMPLE2_NS (example_ns) = {
+    test/foo
+    test/bat
+}
+
+EXAMPLE3_NS (example_ns) = {
+    test/dir1
+    test/dir2
+}
+
+_HOSTS_ = {
+    example1/r~ [debian8 @one.example.com] = $EXAMPLE1_NS
+    example2/r~ [debian8 @two.example.com] = $EXAMPLE2_NS
+    example3/r~ [debian8 @three.example.com] = $EXAMPLE3_NS
+}

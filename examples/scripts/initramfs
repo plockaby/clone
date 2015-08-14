@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### initramfs: /usr/sbin/update-initramfs -u"
+/usr/sbin/update-initramfs -u
+

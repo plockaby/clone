@@ -1,0 +1,2 @@
+severity = harsh
+exclude = RequireArgUnpacking ProhibitImplicitNewlines ProhibitExcessComplexity

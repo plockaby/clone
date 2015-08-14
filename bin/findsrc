@@ -1,0 +1,134 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use FindBin ();
+use lib "${\$FindBin::RealBin}/../lib";
+
+use Pod::Usage;
+use Getopt::Long;
+use Config::Tiny;
+use IO::Interactive qw(is_interactive);
+use Storable qw(dclone);
+use Try::Tiny;
+use Cwd ();
+
+sub main {
+    my $hostname = shift;
+    my $search = shift;
+    my %args = @_;
+
+    my $options = dclone(\%args);
+    $options->{'hosts'} ||= "${\$FindBin::RealBin}/../conf/hosts";
+    $options->{'config'} ||= "${\$FindBin::RealBin}/../conf/config.ini";
+
+    # if we are tied to a tty then don't be quiet by default
+    # but if we ARE NOT tied a tty then be quiet by default
+    $options->{'quiet'} = (is_interactive() ? 0 : 1) unless defined($options->{'quiet'});
+
+    my $config_file = $options->{'config'};
+    die "ERROR: config file does not exist: ${config_file}\n" unless (-e $config_file);
+    die "ERROR: config file is not readable: ${config_file}\n" unless (-r $config_file);
+
+    # parse the config file
+    my $config = Config::Tiny->read($config_file);
+    $options->{'paths'}->{'sources'} = $config->{'paths'}->{'sources'} || "${\$FindBin::RealBin}/../sources";
+
+    # parse hosts and get our host out of it
+    require App::Clone::Config;
+    my $hosts = App::Clone::Config->load($options->{'hosts'}, $options);
+    die "ERROR: could not load hosts\n" unless defined($hosts);
+    my $host = $hosts->host($hostname);
+    die "ERROR: not a configured host: ${hostname}\n" unless defined($host);
+
+    # load all the paths and see if the file is in them
+    for my $path (sort @{$host->paths()}) {
+        next unless (-e $options->{'paths'}->{'sources'} . '/' . $path);
+        next unless (-e $options->{'paths'}->{'sources'} . '/' . $path . '/' . $search);
+        print "  " . Cwd::abs_path($options->{'paths'}->{'sources'} . '/' . $path . '/' . $search) . "\n";
+    }
+
+    return 0;
+}
+
+unless (caller) {
+    my %options = ();
+    GetOptions(
+        \%options,
+        "hosts=s",
+        "quiet!",
+        "help|h",
+    );
+    pod2usage({ '-verbose' => 1 }) if $options{'help'};
+
+    my $hostname = shift(@ARGV);
+    my $search = shift(@ARGV);
+
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing hostname" }) unless defined($hostname);
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing search path" }) unless defined($search);
+
+    exit(try {
+        # only root can read all the files in the source trees
+        die "ERROR: you must be root to run this program\n" unless ($< == 0);
+
+        return main($hostname, $search, %options);
+    } catch {
+        my $error = (defined($_) ? $_ : "unknown error");
+        chomp($error);
+        warn "${error}\n";
+        return 1;
+    });
+}
+
+1;
+
+=head1 NAME
+
+findsrc
+
+=head1 USAGE
+
+    findsrc hostname [full-target-path]
+
+=head1 DESCRIPTION
+
+Prints the name of the source for the given path on the given host. If the file
+is not managed by clone then this will return nothing.
+
+=head1 ARGUMENTS
+
+=over
+
+=item hostname
+
+The host to examine.
+
+=item full-target-path
+
+The absolute path to the file on the host.
+
+=back
+
+=head1 OPTIONS
+
+=over
+
+=item --hosts
+
+The path to the file describing the hosts. The default is C<conf/hosts>.
+
+=item -q|--quiet|--no-quiet
+
+This will quiet things down. Warnings will not be shown. The default is to show
+warnings when connected to a terminal and not show warnings when connected to
+something other than a terminal such as a pipe. Warnings can be shown when not
+connected to a terminal by using C<--no-quiet>.
+
+=item -h|--help
+
+Shows this message.
+
+=back
+
+=cut

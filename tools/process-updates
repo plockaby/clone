@@ -1,0 +1,200 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+use Pod::Usage;
+use Storable qw(lock_retrieve);
+
+sub main {
+    my %args = @_;
+    my $updates_file = $args{'updates'};
+    my $commands_file = $args{'commands'};
+    my $scripts_dir = $args{'scripts'};
+
+    unless (-e $updates_file && -s $updates_file) {
+        print "No updates found in ${updates_file}. Exiting.\n";
+        return;
+    }
+
+    unless (-e $commands_file && -s $commands_file) {
+        print "No commands found in ${commands_file}. Exiting.\n";
+        return;
+    }
+
+    die "ERROR: scripts directory does not exist: ${scripts_dir}\n" unless (-e $scripts_dir);
+    die "ERROR: scripts directory is not readable: ${scripts_dir}\n" unless (-r $scripts_dir && -x $scripts_dir);
+    die "ERROR: scripts directory is not a directory: ${scripts_dir}\n" unless (-d $scripts_dir);
+
+    # what should we do! key is the command name and value is the files that matched
+    my $actions = ();
+
+    # load commands
+    my $commands = lock_retrieve($commands_file);
+    unless (defined($commands)) {
+        print "No commands found in ${commands_file}. Exiting.\n";
+        return;
+    }
+
+    # how many files triggered updates
+    my $files_matched = 0;
+
+    # process files through commands
+    open(my $fh, $updates_file) or die "could not open updates file: ${updates_file}: $!\n";
+    while (my $line = <$fh>) {
+        if (my ($attrs, $updated) = ($line =~ /\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\s+\[\d+\]\s+(.{11})\s+(.*?)(?:\n|\s+\-\>\s+)/xs)) {
+            # if this is a symlink or a directory and the only thing that changed is its timestamp then ignore it
+            next if ($attrs =~ /^\.[DL]\.\.t\.\.\.\.\.\.$/x);
+
+            # the updated file doesn't include a leading slash but it SHOULD
+            $updated = "/${updated}";
+
+            for my $command (keys %{$commands}) {
+                for my $matcher (@{$commands->{$command}}) {
+                    my $regex = qr/^$matcher$/x;
+                    if ($updated =~ $regex) {
+                        $actions->{$command} ||= [];
+                        push(@{$actions->{$command}}, $updated);
+                        ++$files_matched;
+                    }
+                }
+            }
+        }
+    }
+    close($fh);
+
+    unless ($files_matched) {
+        print "No updated files matched a command.\n";
+        return;
+    }
+
+    # call scripts based on the commands
+    for my $command (keys %{$actions}) {
+        print "calling ${scripts_dir}/${command}\n";
+
+        # try to call post-processing but if it fails that's ok too
+        do {
+            local $@;
+            eval {
+                local $ENV{'FILES'} = join(':', @{$actions->{$command}});
+                system("${scripts_dir}/${command}");
+                return 1;
+            } or do {
+                my $error = (defined($@) ? $@ : "unknown error");
+                chomp($error);
+                warn "error occurred while calling ${scripts_dir}/${command}: ${error}\n";
+                return 0;
+            };
+        };
+    }
+
+    # clean up the list of updates
+    unlink($updates_file) or warn "could not remove updates file: $!\n";
+
+    print "Completed updates processing.\n";
+    return;
+}
+
+unless (caller) {
+    my %options = ();
+    GetOptions(
+        \%options,
+        "updates=s",
+        "commands=s",
+        "scripts=s",
+        "help"
+    );
+    pod2usage({ '-verbose' => 1 }) if $options{'help'};
+
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing updates file.\n" }) unless defined($options{'updates'});
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing commands file.\n" }) unless defined($options{'commands'});
+    pod2usage({ '-verbose' => 1, '-message' => "ERROR: missing scripts directory.\n" }) unless defined($options{'scripts'});
+
+    do {
+        local $@;
+        eval {
+            # only root can read all the files in the source trees
+            die "ERROR: you must be root to run this program\n" unless ($< == 0);
+
+            main(%options);
+            return 1;
+        } or do {
+            my $error = (defined($@) ? $@ : "unknown error");
+            chomp($error);
+            warn "an error occurred: ${error}\n";
+        };
+    };
+}
+
+1;
+
+=head1 NAME
+
+process-updates
+
+=head1 USAGE
+
+    process-updates --updates=/path/to/list-of-updates --commands=/path/to/commands --scripts=/path/to/scripts-dir
+
+=head1 DESCRIPTION
+
+B<You should probably never manually run this program.>
+
+This tool runs on the remote host being updated. It takes the list of updates
+that were made to the host and checks the list of commands defined for that
+host to see if any commands need to be run. For example, if a configuration
+file for sshd is updated then a command might be written to notice updates to
+the sshd configuration files and restart sshd automatically.
+
+This program is expected to be found on each host in the home directory of the
+user through which the C<rsync> command is executed on that remote host. This
+home directory is defined in the C<config.ini> file under the global section.
+For example:
+
+    [global]
+    home = /usr/local/ref
+
+Upon the update of a host, C<rsync> will write C<${home}/updates> to the remote
+host. This file lists all everything that was updated. Also upon the update of
+a host, C<clone> will write C<${home}/commands> to the remote. This file lists
+all commands configured for the host in the filter files found in the sources
+that make up the host as well as the regular expression patterns that will be
+tried against the list of files updated. Finally, if a file that is marked as
+updated in C<${home}/updates> matches a command listed in C<${home}/commands>
+and a script matching the name of the command is found in C<${home}/scripts>
+then that script will be run. Each script will run only once per host
+regardless of the number of files matched.
+
+It is up to the person deploying this system to ensure that this program and
+any scripts used by it get deployed to the remote hosts.
+
+=head1 OPTIONS
+
+=over
+
+=item --updates
+
+The path to the file on the remote host that contains a list of all files that
+were updated.
+
+=item --commands
+
+The path to the file on the remote host that contains all of the commands
+configured for the host as defined in the filter files found in the source
+trees that make up the host's definition.
+
+=item --scripts
+
+The path to the directory on the remote host that contains all the scripts
+that will run when a command is matched by an updated file. It is expected
+that the name of the command will match the configured command in the host's
+filter files.
+
+=tem -h|--help
+
+Shows this message.
+
+=back
+
+=cut

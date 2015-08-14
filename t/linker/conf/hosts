@@ -1,0 +1,8 @@
+EXAMPLE1_NS = {
+    test/foo
+    test/bar
+}
+
+_HOSTS_ = {
+    example1/r~ [debian8 @one.example.com] = $EXAMPLE1_NS
+}

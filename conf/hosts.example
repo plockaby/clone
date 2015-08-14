@@ -1,0 +1,40 @@
+COMMON_BASE = {
+    local/base
+    local/shorewall
+    local/ssh
+}
+
+COMMON_BASE_x64 = {
+    local-x64/git-2.5.0
+    local-x64/rsync-3.1.1
+}
+
+COMMON_DEBIAN7 = {
+    debian7/apt
+    debian7/cron-apt
+    debian7/collectd
+    debian7/logwatch
+    debian7/postfix
+}
+
+DEV_NS (dev_ns) = {
+    $COMMON_BASE
+    DEV_DEBIAN7_NS (dev_lockaby_org) = {
+        push/
+        push/common
+        push/www
+        hosts/
+        debian7/ntp-server
+        debian7/postfix-local
+        $COMMON_DEBIAN7
+        $COMMON_BASE_x64
+        local-x64/postgres-9.4.4
+        local-x64/perl-5.20.2
+        local-x64/python-2.7.10
+        local-x64/php-5.6.11
+    }
+}
+
+_HOSTS_ = {
+    dev/ [dev.home.lockaby.org] = $DEV_DEBIAN7_NS
+}

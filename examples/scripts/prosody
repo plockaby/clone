@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### prosody: /etc/init.d/prosody restart"
+/etc/init.d/prosody restart
+

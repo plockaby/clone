@@ -1,0 +1,16 @@
+=command ssh
+    ^/etc/ssh/sshd_config
+    ^/etc/ssh/ssh_host_.*
+    ^/etc/default/ssh
+
+=directory
+    /etc/ssh
+
+=nodirectory
+    /foo/bar
+
+=noexcept
+    /baz/bat
+
+=perishable
+    *.pyc

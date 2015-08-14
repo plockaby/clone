@@ -1,0 +1,10 @@
+=command ssh
+    ^/etc/ssh/sshd_config
+    ^/etc/ssh/ssh_host_.*
+    ^/etc/default/ssh
+
+=directory
+    /etc/ssh
+
+=except
+    /etc/ssh/moduli

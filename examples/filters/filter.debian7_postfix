@@ -1,0 +1,8 @@
+=command postfix
+    ^/etc/postfix/.*
+
+=directory
+    /etc/postfix
+
+=except
+    /etc/postfix/transports.db

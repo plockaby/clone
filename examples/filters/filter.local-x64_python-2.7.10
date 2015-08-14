@@ -1,0 +1,4 @@
+=directory
+    /usr/local/python
+    /usr/local/bin
+    /etc/ld.so.conf.d

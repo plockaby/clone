@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### mandb: /usr/bin/mandb -q"
+/usr/bin/mandb -q
+

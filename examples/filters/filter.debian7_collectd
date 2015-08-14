@@ -1,0 +1,6 @@
+=command collectd
+    ^/etc/collectd/.*
+    ^/etc/default/collectd
+
+=directory
+    /etc/collectd

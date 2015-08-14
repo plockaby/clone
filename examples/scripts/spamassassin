@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### prosody: /etc/init.d/spamassassin restart"
+/etc/init.d/spamassassin restart
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### collectd: /etc/init.d/collectd restart"
+/etc/init.d/collectd restart
+

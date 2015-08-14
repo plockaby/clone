@@ -1,0 +1,143 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use FindBin ();
+use lib "${\$FindBin::RealBin}/../lib";
+
+use Pod::Usage;
+use Getopt::Long;
+use Config::Tiny;
+use IO::Interactive qw(is_interactive);
+use Storable qw(dclone);
+use Try::Tiny;
+use Cwd ();
+
+sub main {
+    my %args = @_;
+
+    my $options = dclone(\%args);
+    $options->{'hosts'} ||= "${\$FindBin::RealBin}/../conf/hosts";
+    $options->{'config'} ||= "${\$FindBin::RealBin}/../conf/config.ini";
+
+    # if we are tied to a tty then don't be quiet by default
+    # but if we ARE NOT tied a tty then be quiet by default
+    $options->{'quiet'} = (is_interactive() ? 0 : 1) unless defined($options->{'quiet'});
+
+    my $config_file = $options->{'config'};
+    die "ERROR: config file does not exist: ${config_file}\n" unless (-e $config_file);
+    die "ERROR: config file is not readable: ${config_file}\n" unless (-r $config_file);
+
+    # parse the config file
+    my $config = Config::Tiny->read($config_file);
+    $options->{'paths'}->{'sources'} = $config->{'paths'}->{'sources'} || "${\$FindBin::RealBin}/../sources";
+
+    # parse hosts but we don't need a particular host
+    require App::Clone::Config;
+    my $hosts = App::Clone::Config->load($options->{'hosts'}, $options);
+    die "ERROR: could not load hosts\n" unless defined($hosts);
+
+    # find all of the quarks that are actually in use
+    my $in_use = {};
+    for my $hostname (@{$hosts->hostnames()}) {
+        my $host = $hosts->host($hostname);
+        $in_use->{$options->{'paths'}->{'sources'} . '/' . $_} = 1 for (@{$host->paths()});
+    }
+
+    # get the directories under the sources path
+    my @collections = ();
+    opendir(my $dh, $options->{'paths'}->{'sources'}) or die "ERROR: could not open ${\$options->{'paths'}->{'sources'}}: $!\n";
+    push(@collections, grep { !/^\.+$/x } readdir($dh));
+    closedir($dh);
+
+    my @dead = ();
+    for my $collection (@collections) {
+        try {
+            # find all the quarks in this architecture
+            my $collection = $options->{'paths'}->{'sources'} . '/' . $collection;
+            opendir(my $ch, $collection) or die "could not open ${collection}: $!\n";
+            my @paths = map { "${collection}/${_}" } grep { !/^\.+$/x } readdir($ch);
+            closedir($ch);
+
+            for my $path (@paths) {
+                unless (exists($in_use->{$path})) {
+                    push(@dead, Cwd::abs_path($path));
+                }
+            }
+        } catch {
+            my $error = $_;
+            print "ERROR: " . (defined($error) ? $error : "unknown") . "\n";
+        };
+    }
+
+    if ($options->{'quiet'}) {
+        print "${_}\n" for (sort @dead);
+    } else {
+        print "These these source trees are on the filesystem but not used by any hosts:\n";
+        print " - ${_}\n" for (sort @dead);
+    }
+
+    return 0;
+}
+
+unless (caller) {
+    my %options = ();
+    GetOptions(
+        \%options,
+        "hosts=s",
+        "config=s",
+        "quiet!",
+        "help|h",
+    );
+    pod2usage({ '-verbose' => 1 }) if $options{'help'};
+
+    exit(try {
+        # only root can read all the files in the source trees
+        die "ERROR: you must be root to run this program\n" unless ($< == 0);
+
+        return main(%options);
+    } catch {
+        my $error = (defined($_) ? $_ : "unknown error");
+        chomp($error);
+        warn "${error}\n";
+        return 1;
+    });
+}
+
+1;
+
+=head1 NAME
+
+deadsrc
+
+=head1 USAGE
+
+    deadsrc
+
+=head1 DESCRIPTION
+
+Finds sources that aren't being used by any host so that they may be removed.
+
+=head1 OPTIONS
+
+=over
+
+=item --hosts
+
+The path to the file describing the hosts. The default is C<conf/hosts>.
+
+=item -q|--quiet|--no-quiet
+
+This will quiet things down. Warnings will not be shown. The default is to show
+warnings when connected to a terminal and not show warnings when connected to
+something other than a terminal such as a pipe. Warnings can be shown when not
+connected to a terminal by using C<--no-quiet>.
+
+=item -h|--help
+
+Shows this message.
+
+=back
+
+=cut

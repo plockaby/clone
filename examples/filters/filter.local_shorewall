@@ -1,0 +1,5 @@
+=command shorewall
+    ^/etc/shorewall/.*
+
+=directory
+    /etc/shorewall

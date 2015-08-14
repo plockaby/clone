@@ -1,0 +1,14 @@
+EXAMPLE1_NS = { }
+
+EXAMPLE2_NS = { }
+
+EXAMPLE3_NS = { }
+
+EXAMPLE4_NS = { }
+
+_HOSTS_ = {
+    example1/r [debian8 @one.example.com] = $EXAMPLE1_NS
+    example2/r~ [debian8 @two.example.com] = $EXAMPLE2_NS
+    example3/r~ [debian8 @three.example.com] = $EXAMPLE3_NS
+    example4/r~ [debian8 @four.example.com] = $EXAMPLE4_NS
+}

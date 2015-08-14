@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "### shorewall: /etc/init.d/shorewall restart"
+/etc/init.d/shorewall restart
+

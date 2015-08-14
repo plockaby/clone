@@ -1,0 +1,2 @@
+Anything in this directory will be deployed to the remote user's home directory
+every time a host is cloned.

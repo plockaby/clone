@@ -1,0 +1,59 @@
+=command update-rc.d
+    ^/etc/init\.d/.*
+
+=command ldconfig
+    ^/etc/ld.so.conf
+    ^/etc/ld\.so\.conf\.d/.*
+    ^/lib/.*\.so.*
+    ^/usr/lib/.*\.so.*
+    ^/lib/x86_64\-linux\-gnu/.*\.so.*
+    ^/usr/lib/x86_64\-linux\-gnu/.*\.so.*
+    ^/usr/local/lib/.*\.so.*
+
+=command sysctl
+    ^/etc/sysctl.conf
+    ^/etc/sysctl\.d/.*
+
+=command mandb
+    ^/usr/share/man/.*
+
+=command initramfs
+    ^/bin/.*
+    ^/sbin/.*
+    ^/etc/initramfs\-tools/.*
+    ^/lib/modules/3\.2\.0\-4\-amd64/.*
+    ^/lib/udev/.*
+    ^/lib/x86_64\-linux-gnu/.*
+    ^/lib64/.*
+    ^/vmlinuz
+    ^/initrd.img
+
+=command aliases
+    ^/etc/aliases
+
+=directory
+    /etc/sudoers.d
+    /etc/ld.so.conf.d
+    /etc/sysctl.d
+    /usr/local/ref
+    /srv/www
+
+=except
+    /dev/
+    lost+found/
+    /proc/
+    /run/
+    /selinux/
+    /sys/
+    /tmp/
+    /root/.ssh/id_rsa*
+    /usr/local/ref/.ssh/id_rsa*
+    /srv/www/.viminfo
+    /srv/www/.bash_history
+    /filter.*
+    filter_
+
+=perishable
+    *.pyc
+    .*.swp
+    *~
