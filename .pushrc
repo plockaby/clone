@@ -5,14 +5,14 @@ env.clone_path = "push/clone"
 env.host_path = "/clone"
 env.host_user = "root"
 
+# changing path to the perl release directory
+env.perl_release_lib_dir = "{}/lib".format(env.perl_release_dir)
 
 class CustomBuildTask(PerlBuildTask):
     __doc__ = pushlib.BuildTask.__doc__
 
-    def run(self):
-        env.perl_release_lib_dir = "{}/lib".format(env.perl_release_dir)
-
-        super(CustomBuildTask, self).run()
+    def after(self):
+        super(CustomBuildTask, self).after()
 
         # copy the sites directory
         execute(CopyDirectoryTask(), "conf")
