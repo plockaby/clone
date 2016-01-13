@@ -250,11 +250,12 @@ sub _parse_filter_sections {
     # and create them or else rsync will try to remove them on the remote side
     # which is basically the exact opposite of what we want to happen.
     for my $exception (@excepts) {
-        if ($exception =~ /^(\/.+)\/[^\/]*$/x) {
-            my $path = $1;
+        if ($exception =~ /\//x) {
+            my $path = $exception;
 
-            # if a star appears then remove everything after it, including the star
-            $path =~ s/\/?\*\/?.*$//x;
+            $path =~ s/[^\/]*[\[*?].*//x;  # strip to shortest path that has no pattern
+            $path =~ s/\/[^\/]*$//x;       # strip everything after last slash
+            next unless $path;             # only proceed if something is left
 
             my $target = $self->{'_builds'} . "/" . $host->hostname() . $path;
             unless (-e $target || -l $target) {
