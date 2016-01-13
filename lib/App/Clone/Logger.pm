@@ -81,26 +81,29 @@ sub new {
     my $stderr = undef;
 
     if (defined($fh)) {
-        if ($options->{'console'}) {
-            # try to connect to both the console and the file simultaneously
-            try {
-                require IO::Tee;
+        # try to connect to both the console and the file simultaneously
+        try {
+            require IO::Tee;
+
+            if ($options->{'console'}) {
                 $stdout = IO::Tee->new($fh, \*STDOUT);
                 $stderr = IO::Tee->new($fh, \*STDERR);
-                return;
-            } catch {
-                warn "could not log to both ${file} and the console: could not load IO::Tee\n";
-
+            } else {
+                # write stdout to the file only
                 $stdout = $fh;
-                $stderr = $fh;
 
-                return;
-            };
-        } else {
-            # just writing to the console
+                # write errors to the console and to the file
+                $stderr = IO::Tee->new($fh, \*STDERR);
+            }
+            return;
+        } catch {
+            warn "could not log to both ${file} and the console: could not load IO::Tee -- writing to ${file} only\n";
+
             $stdout = $fh;
             $stderr = $fh;
-        }
+
+            return;
+        };
     } else {
         $file = '-';
         $stdout = \*STDOUT;
