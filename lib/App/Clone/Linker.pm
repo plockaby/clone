@@ -342,9 +342,9 @@ sub _chown {
 sub _chmod {
     my ($self, $file, $mode) = @_;
 
-    print { $self->{'_stdout'} } sprintf("chmod %lo ${file}\n", ($mode & oct(7777)));
+    print { $self->{'_stdout'} } "chmod " . sprintf("%lo", ($mode & oct(7777))) . " ${file}\n";
     unless (chmod($mode, $file)) {
-        print { $self->{'_stderr'} } sprintf("ERROR - chmod %lo ${file} failed: $!", ($mode & oct(7777))) . "\n";
+        print { $self->{'_stderr'} } "ERROR - chmod " . sprintf("%lo", ($mode & oct(7777))) . " ${file} failed: $!\n";
     }
 
     return;
@@ -354,7 +354,7 @@ sub _mkdir {
     my ($self, $dir, $mode) = @_;
 
     print { $self->{'_stdout'} } "mkdir ${dir}\n";
-    print { $self->{'_stdout'} } sprintf("chmod %lo ${dir}\n", ($mode & oct(7777)));
+    print { $self->{'_stdout'} } "chmod " . sprintf("%lo", ($mode & oct(7777))) . " ${dir}\n";
     unless (mkdir($dir, $mode)) {
         print { $self->{'_stderr'} } "ERROR - mkdir ${dir} failed: $!\n";
     }
