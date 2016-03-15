@@ -58,6 +58,10 @@ user should have permissions to run C<sudo> on C<rsync> on the remote host.
 This is the path to the directory on the remote host that will be used to stage
 things like the post-processing commands and the rsync log.
 
+=item key
+
+This is the path to private SSH key to use when connecting to the remote host.
+
 =item force
 
 If this option is present and evaluates to a true value then the host will be
@@ -125,6 +129,11 @@ sub new {
     die "ERROR: cannot find user -- missing 'user' in configuration file.\n" unless defined($options->{'user'});
     die "ERROR: cannot find home -- missing 'home' in configuration file.\n" unless defined($options->{'home'});
 
+    # make sure we have a key and that it exists
+    my $key = $options->{'key'};
+    die "ERROR: cannot find key -- missing 'key' in configuration file.\n" unless defined($key);
+    die "ERROR: cannot find key -- key not found: ${key}.\n" unless (-e $key);
+
     return bless({
         '_stdout'  => $options->{'stdout'} || *STDOUT,
         '_stderr'  => $options->{'stderr'} || *STDERR,
@@ -176,6 +185,7 @@ sub _run {
     my $rsync = $self->{'_options'}->{'runner'}->{'rsync'};
     my $user  = $self->{'_options'}->{'user'};
     my $home  = $self->{'_options'}->{'home'};
+    my $key   = $self->{'_options'}->{'key'};
 
     # make sure we have something to sync
     my $builds = $self->{'_builds'} . "/" . $host->hostname();
@@ -233,7 +243,7 @@ sub _run {
         $command .= "-n " unless ($update);
         $command .= "--checksum " if ($self->{'_options'}->{'paranoid'});
         $command .= "--delete-during ";
-        $command .= "--rsh=\"${ssh} -l ${user}\" ";
+        $command .= "--rsh=\"${ssh} -l ${user} -i ${key}\" ";
         $command .= "--exclude=${home}/updates ";
         $command .= "--filter=\"merge ${builds}/filter_\" ";
         $command .= "--rsync-path=\"${sudo} ${rsync} --log-file=${home}/updates\" ";
@@ -256,7 +266,7 @@ sub _run {
 
     # run remote commands
     if ($update) {
-        my $command = "${ssh} -l ${user} ${\$host->fqdn()} ${sudo} ${home}/tools/process-updates ";
+        my $command = "${ssh} -l ${user} -i ${key} ${\$host->fqdn()} ${sudo} ${home}/tools/process-updates ";
         $command .= "--updates=${home}/updates ";
         $command .= "--commands=${home}/commands ";
         $command .= "--scripts=${home}/tools/scripts ";

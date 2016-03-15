@@ -42,6 +42,7 @@ sub main {
     my $config = Config::Tiny->read($config_file);
     $options->{'user'}               = $config->{'global'}->{'user'}   || 'ref';
     $options->{'home'}               = $config->{'global'}->{'home'}   || '/usr/local/' . $options->{'user'};
+    $options->{'key'}                = $config->{'global'}->{'key'}    || $options->{'home'} . '/.ssh/id_rsa';
     $options->{'runner'}->{'ssh'}    = $config->{'runner'}->{'ssh'}    || which('ssh');
     $options->{'runner'}->{'rsync'}  = $config->{'runner'}->{'rsync'}  || which('rsync');
     $options->{'runner'}->{'sudo'}   = $config->{'runner'}->{'sudo'}   || which('sudo');
@@ -448,6 +449,7 @@ Here is an example of a configuration file:
 
     user = ref
     home = /usr/local/ref
+    key = /usr/local/ref/.ssh/id_rsa
 
     [runner]
     ssh = /usr/bin/ssh

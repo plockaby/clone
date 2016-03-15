@@ -7,6 +7,9 @@ user = ref
 # be sorted to the top so that it is always be deployed first.
 home = /usr/local/ref
 
+# this is the path to where the ssh keys live for the user defined above
+key = /usr/local/ref/.ssh/id_rsa
+
 [runner]
 # where the ssh binary is
 # default is: /usr/bin/ssh
