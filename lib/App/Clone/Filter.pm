@@ -253,6 +253,9 @@ sub _parse_filter_sections {
         if ($exception =~ /\//x) {
             my $path = $exception;
 
+            # ignore a path that isn't leading with a slash because it's relative
+            next unless ($path =~ /^\//x);
+
             $path =~ s/[^\/]*[\[*?].*//x;  # strip to shortest path that has no pattern
             $path =~ s/\/[^\/]*$//x;       # strip everything after last slash
             next unless $path;             # only proceed if something is left
