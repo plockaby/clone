@@ -249,7 +249,7 @@ sub _parse_filter_sections {
     # we need to find any directories that have been excepted that don't exist
     # and create them or else rsync will try to remove them on the remote side
     # which is basically the exact opposite of what we want to happen.
-    for my $exception (@excepts) {
+    for my $exception (@excepts, @perishables) {
         if ($exception =~ /\//x) {
             my $path = $exception;
 
