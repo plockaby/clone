@@ -282,6 +282,7 @@ sub _create_directory {
 
     $self->_mkdir($target_absolute, $mode);
     $self->_chown($target_absolute, $uid, $gid);
+    $target->set_mark($name);
 
     return;
 }
