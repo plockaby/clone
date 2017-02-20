@@ -242,6 +242,7 @@ sub _run {
         my $command = "${rsync} -rlptgoDzhiOJH --numeric-ids --stats ";
         $command .= "-n " unless ($update);
         $command .= "--checksum " if ($self->{'_options'}->{'paranoid'});
+        $command .= "--bwlimit=${\$self->{'_options'}->{'bandwidth-limit'}} " if ($self->{'_options'}->{'bandwidth-limit'});
         $command .= "--delete-during ";
         $command .= "--rsh=\"${ssh} -l ${user} -i ${key}\" ";
         $command .= "--exclude=${home}/updates ";

@@ -168,6 +168,7 @@ unless (caller) {
         "force|f",
         "console|c",
         "paranoid|p",
+        "bandwidth-limit=i",
         "quiet!",
         "test",
         "help|h",
@@ -311,6 +312,12 @@ the last build. B<WARNING> This will make changes to the remote host!
 =head1 OPTIONS
 
 =over
+
+=item --bandwidth-limit
+
+This will limit the amount of bandwidth that is used when performing the rsync.
+This is passed directly to rsync. If no value is specified then as much
+bandwidth as possible is used.
 
 =item -q|--quiet|--no-quiet
 
