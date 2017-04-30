@@ -426,12 +426,11 @@ sub get_entry_directory_info {
     my $entry = $self->find_dir_entry($name);
     return unless defined($entry);
 
-    my @info =  (
+    return [
         $entry->{'mode'},
         $entry->{'uid'},
         $entry->{'gid'},
-    );
-    return \@info;
+    ];
 }
 
 =pod
@@ -467,8 +466,13 @@ sub get_entry_link_info {
     my ($self, $name) = @_;
 
     my $entry = $self->find_link_entry($name);
-    return $entry->{'ltarg'} if defined($entry);
-    return;
+    return unless defined($entry);
+
+    return [
+        $entry->{'ltarg'},
+        $entry->{'uid'},
+        $entry->{'gid'},
+    ];
 }
 
 =pod

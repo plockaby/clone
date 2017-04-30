@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 use Try::Tiny;
 use File::Path qw(make_path remove_tree);
-use File::Find ();
+use Lchown;
 
 use App::Clone::Linker::Directory;
 
@@ -236,6 +236,8 @@ sub _collect_directories {
                     'source' => $q,
                     'type'   => 'S',
                     'ltarg'  => readlink("${dpath}/${entry}"),
+                    'uid'    => $uid,
+                    'gid'    => $gid,
                 );
                 next;
             }
@@ -312,10 +314,10 @@ sub _create_link {
     my ($self, $source, $target, $path, $name) = @_;
 
     my $target_absolute = $self->{'_base'} . $path . "/". $name;
-    my $ltarg = $source->get_entry_link_info($name);
+    my ($ltarg, $uid, $gid) = @{$source->get_entry_link_info($name)};
 
     if ($target->get_entry_count($name)) {
-        if ($target->is_entry_link($name) && $target->get_entry_link_info($name) eq $ltarg) {
+        if ($target->is_entry_link($name) && join("-", $target->get_entry_link_info($name)) ne "${ltarg}-${uid}-${gid}") {
             $target->set_mark($name);
             return;
         } else {
@@ -324,6 +326,7 @@ sub _create_link {
     }
 
     $self->_symlink($target_absolute, $ltarg);
+    $self->_lchown($target_absolute, $uid, $gid);
     $target->set_mark($name);
 
     return;
@@ -335,6 +338,17 @@ sub _chown {
     print { $self->{'_stdout'} } "chown ${uid}.${gid} ${file}\n";
     unless (chown($uid, $gid, $file)) {
         print { $self->{'_stderr'} } "ERROR - chown ${file} failed: $!\n";
+    }
+
+    return;
+}
+
+sub _lchown {
+    my ($self, $link, $uid, $gid) = @_;
+
+    print { $self->{'_stdout'} } "chown -h ${uid}.${gid} ${link}\n";
+    unless (lchown($uid, $gid, $link)) {
+        print { $self->{'_stderr'} } "ERROR - chown ${link} failed: $!\n";
     }
 
     return;
