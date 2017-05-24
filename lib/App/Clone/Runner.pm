@@ -36,15 +36,15 @@ scripts are to be found. Everything in this directory will be copied to the
 the C<tools> directory under the directory defined in the C<home> configuration
 option and deployed to the remote host.
 
-=item runner->ssh
+=item ssh
 
 This should be the path to C<ssh> on the local and remote host.
 
-=item runner->rsync
+=item rsync
 
 This should be the path to C<rsync> on the local and remote host.
 
-=item runner->sudo
+=item sudo
 
 This should be the path to C<sudo> on the remote host.
 
@@ -108,19 +108,19 @@ sub new {
     die "ERROR: tool path is not readable: ${tools}\n" unless (-r $tools && -x _);
 
     # make sure we have ssh and that we can run it
-    my $ssh = $options->{'runner'}->{'ssh'};
+    my $ssh = $options->{'ssh'};
     die "ERROR: cannot find ssh client\n" unless defined($ssh);
     die "ERROR: cannot find ssh client -- ssh executable not found: ${ssh}\n" unless (-e $ssh);
     die "ERROR: cannot find ssh client -- ssh executable is not executable: ${ssh}\n" unless (-x $ssh);
 
     # make sure we have rsync and that we can run it
-    my $rsync = $options->{'runner'}->{'rsync'};
+    my $rsync = $options->{'rsync'};
     die "ERROR: cannot find rsync client\n" unless defined($rsync);
     die "ERROR: cannot find rsync client -- rsync executable not found: ${rsync}\n" unless (-e $rsync);
     die "ERROR: cannot find rsync client -- rsync executable is not executable: ${rsync}\n" unless (-x $rsync);
 
     # make sure we have sudo and that we can run it
-    my $sudo = $options->{'runner'}->{'sudo'};
+    my $sudo = $options->{'sudo'};
     die "ERROR: cannot find sudo\n" unless defined($ssh);
     die "ERROR: cannot find sudo -- sudo executable not found: ${sudo}\n" unless (-e $sudo);
     die "ERROR: cannot find sudo -- sudo executable is not executable: ${sudo}\n" unless (-x $sudo);
@@ -180,9 +180,9 @@ sub _run {
         die "ERROR: host is disabled with X, probably intentionally -- force action with -f\n";
     }
 
-    my $ssh   = $self->{'_options'}->{'runner'}->{'ssh'};
-    my $sudo  = $self->{'_options'}->{'runner'}->{'sudo'};
-    my $rsync = $self->{'_options'}->{'runner'}->{'rsync'};
+    my $ssh   = $self->{'_options'}->{'ssh'};
+    my $sudo  = $self->{'_options'}->{'sudo'};
+    my $rsync = $self->{'_options'}->{'rsync'};
     my $user  = $self->{'_options'}->{'user'};
     my $home  = $self->{'_options'}->{'home'};
     my $key   = $self->{'_options'}->{'key'};

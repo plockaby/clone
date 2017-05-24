@@ -30,7 +30,8 @@ string.
 
 =item options
 
-This is a hashref of options to use when running rsync. The options used are:
+This is a hashref of options to use when parsing the configuration file. The
+options used are:
 
 =over
 

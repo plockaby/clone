@@ -40,16 +40,21 @@ sub main {
 
     # parse the config file and assign more defaults
     my $config = Config::Tiny->read($config_file);
-    $options->{'user'}               = $config->{'global'}->{'user'}   || 'ref';
-    $options->{'home'}               = $config->{'global'}->{'home'}   || '/usr/local/' . $options->{'user'};
-    $options->{'key'}                = $config->{'global'}->{'key'}    || $options->{'home'} . '/.ssh/id_rsa';
-    $options->{'runner'}->{'ssh'}    = $config->{'runner'}->{'ssh'}    || which('ssh');
-    $options->{'runner'}->{'rsync'}  = $config->{'runner'}->{'rsync'}  || which('rsync');
-    $options->{'runner'}->{'sudo'}   = $config->{'runner'}->{'sudo'}   || which('sudo');
+    $options->{'user'}               = delete($config->{'global'}->{'user'})   || 'ref';
+    $options->{'home'}               = delete($config->{'global'}->{'home'})   || '/usr/local/' . $options->{'user'};
+    $options->{'key'}                = delete($config->{'global'}->{'key'})    || $options->{'home'} . '/.ssh/id_rsa';
+    $options->{'ssh'}                = delete($config->{'global'}->{'ssh'})    || which('ssh');
+    $options->{'rsync'}              = delete($config->{'global'}->{'rsync'})  || which('rsync');
+    $options->{'sudo'}               = delete($config->{'global'}->{'sudo'})   || which('sudo');
     $options->{'paths'}->{'sources'} = $config->{'paths'}->{'sources'} || "${\$FindBin::RealBin}/../sources";
     $options->{'paths'}->{'builds'}  = $config->{'paths'}->{'builds'}  || "${\$FindBin::RealBin}/../builds";
     $options->{'paths'}->{'logs'}    = $config->{'paths'}->{'logs'}    || "${\$FindBin::RealBin}/../logs";
     $options->{'paths'}->{'tools'}   = $config->{'paths'}->{'tools'}   || "${\$FindBin::RealBin}/../tools";
+
+    # now merge the leftover global options into the options
+    for my $key (keys %{$config->{'global'}}) {
+        $options->{$key} = $config->{'global'}->{$key};
+    }
 
     # parse hosts and get our host out of it
     require App::Clone::Config;
