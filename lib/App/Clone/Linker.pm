@@ -317,7 +317,7 @@ sub _create_link {
     my ($ltarg, $uid, $gid) = @{$source->get_entry_link_info($name)};
 
     if ($target->get_entry_count($name)) {
-        if ($target->is_entry_link($name) && join("-", $target->get_entry_link_info($name)) ne "${ltarg}-${uid}-${gid}") {
+        if ($target->is_entry_link($name) && join("-", @{$target->get_entry_link_info($name)}) eq "${ltarg}-${uid}-${gid}") {
             $target->set_mark($name);
             return;
         } else {
