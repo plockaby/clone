@@ -1,0 +1,5 @@
+=command shorewall6
+    ^/etc/shorewall6/.*
+
+=directory
+    /etc/shorewall6

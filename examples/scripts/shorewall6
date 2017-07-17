@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "### shorewall6: systemctl restart shorewall6"
+systemctl restart shorewall6
