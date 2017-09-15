@@ -12,7 +12,6 @@ use Config::Tiny;
 use IO::Interactive qw(is_interactive);
 use Storable qw(dclone);
 use Try::Tiny;
-use Cwd ();
 
 sub main {
     my $hostname = shift;
@@ -46,7 +45,7 @@ sub main {
     for my $path (sort @{$host->paths()}) {
         next unless (-e $options->{'paths'}->{'sources'} . '/' . $path);
         next unless (-e $options->{'paths'}->{'sources'} . '/' . $path . '/' . $search);
-        print "  " . Cwd::abs_path($options->{'paths'}->{'sources'} . '/' . $path . '/' . $search) . "\n";
+        print "  " . $options->{'paths'}->{'sources'} . '/' . $path . $search . "\n";
     }
 
     return 0;
