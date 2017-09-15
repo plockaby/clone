@@ -9,8 +9,6 @@ use Cwd ();
 
 require_ok("./bin/findsrc") or BAIL_OUT("cannot test findsrc as it is not compiling correctly");
 
-my $current_path = Cwd::cwd();
-
 ## hosts file is missing
 try {
     main('example', '/myfile.txt', 'hosts' => 't/basics/conf/hosts-does-not-exist', 'config' => 't/basics/conf/config.ini', 'quiet' => 1, 'skip_lookups' => 1);
@@ -91,15 +89,15 @@ subtest "findsrc" => sub {
 
     Test::Output::combined_is(sub {
         main('example1', '/myfile.txt', 'hosts' => 't/basics/conf/hosts', 'config' => 't/basics/conf/config.ini', 'quiet' => 1, 'skip_lookups' => 1),
-    }, "  ${current_path}/t/basics/sources/test/foo/myfile.txt\n", undef, 'test1');
+    }, "  t/basics/sources/test/foo/myfile.txt\n", undef, 'test1');
 
     Test::Output::combined_is(sub {
         main('example1', '/yourfile.txt', 'hosts' => 't/basics/conf/hosts', 'config' => 't/basics/conf/config.ini', 'quiet' => 1, 'skip_lookups' => 1),
-    }, "  ${current_path}/t/basics/sources/test/bar/yourfile.txt\n", undef, 'test2');
+    }, "  t/basics/sources/test/bar/yourfile.txt\n", undef, 'test2');
 
     Test::Output::combined_is(sub {
         main('example3', '/etc/blarg.txt', 'hosts' => 't/basics/conf/hosts', 'config' => 't/basics/conf/config.ini', 'quiet' => 1, 'skip_lookups' => 1),
-    }, "  ${current_path}/t/basics/sources/test/dir1/etc/blarg.txt\n", undef, 'test3');
+    }, "  t/basics/sources/test/dir1/etc/blarg.txt\n", undef, 'test3');
 
     done_testing();
 };
