@@ -145,7 +145,7 @@ sub _get_filter_files {
 
     # filter files begin with the word "filter."
     opendir(my $dh, $path) or die "could not open directory: ${path}: $!\n";
-    my @filter_files = grep { $_ =~ /^filter\./x } readdir($dh);
+    my @filter_files = sort grep { $_ =~ /^filter\./x } readdir($dh);
     closedir($dh);
 
     return \@filter_files;
@@ -153,8 +153,6 @@ sub _get_filter_files {
 
 sub _parse_filters {
     my ($self, $file) = @_;
-    print { $self->{'_stdout'} } "=> reading filter: ${file}\n" unless $self->{'_options'}->{'quiet'};
-
     my $sections = {};
 
     # remember which section we are currently reviewing in the loop
