@@ -335,7 +335,7 @@ connected to a terminal by using C<--no-quiet>.
 
 Enable rsync checksums. Normally rsync will determine whether to update a file
 by comparing the file size and the modification time of the local and remote
-file. This flag will instead use the MD5 of the local and remove file. Using
+file. This flag will instead use the MD5 of the local and remote file. Using
 this flag will make rsync run signficantly longer.
 
 =item -f|--force
