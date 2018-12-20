@@ -1,29 +1,28 @@
-#!/usr/bin/env python2.7
-from fabric.api import env, execute, local
-from pushlib.perl import *
+# vi:syntax=python
+from pushlib.modules.perl import *
+from pushlib.tools import copy, abort
 env.clone_path = "push/clone"
 env.host_path = "/clone"
 env.host_user = "root"
 
-# changing path to the perl release directory
-env.perl_release_lib_dir = "{}/lib".format(env.perl_release_dir)
-
-class CustomBuildTask(PerlBuildTask):
-    __doc__ = pushlib.BuildTask.__doc__
-
-    def after(self):
-        super(CustomBuildTask, self).after()
+class BuildTask(BuildTask):
+    def after(self, c):
+        super().after(c)
 
         # copy the sites directory
-        execute(CopyDirectoryTask(), "conf")
-        execute(CopyDirectoryTask(), "tools")
+        copy("conf")
+        copy("tools")
 
         # make some symlinks and directories
-        local("mkdir -p {}/builds".format(env.release_dir))
-        local("mkdir -p {}/logs".format(env.release_dir))
-        local("mkdir -p {}/sources".format(env.release_dir))
-        local("ln -svf bin/clone {}/clone".format(env.release_dir))
-        local("ln -svf bin/findsrc {}/findsrc".format(env.release_dir))
+        c.run("mkdir -p {}/builds".format(env.release_dir))
+        c.run("mkdir -p {}/logs".format(env.release_dir))
+        c.run("mkdir -p {}/sources".format(env.release_dir))
+        c.run("ln -svf bin/clone {}/clone".format(env.release_dir))
+        c.run("ln -svf bin/findsrc {}/findsrc".format(env.release_dir))
 
+        # don't want man pages anymore
+        c.run("rm -rf {}/man".format(env.release_dir))
 
-buildTask = CustomBuildTask()
+        # move lib directory to an accessible place
+        c.run("mv {}/lib/perl/* {}/lib".format(env.release_dir, env.release_dir))
+        c.run("rm -rf {}/lib/perl".format(env.release_dir))
