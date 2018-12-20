@@ -26,3 +26,6 @@ class BuildTask(BuildTask):
         # move lib directory to an accessible place
         c.run("mv {}/lib/perl/* {}/lib".format(env.release_dir, env.release_dir))
         c.run("rm -rf {}/lib/perl".format(env.release_dir))
+
+        # fix permissions on directories
+        c.run("find {} -type d -exec chmod g-w {{}} \;".format(env.release_dir))
