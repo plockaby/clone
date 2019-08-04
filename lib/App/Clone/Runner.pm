@@ -225,6 +225,7 @@ sub _run {
         # -i  output a change summary for all updates
         # -O  omit directories from --times
         # -J  omit symlinks from --times (only available in rsync 3.1.0 and greater)
+        # -XX preserve extended attributes (xattrs)
         # -H  copy hard links as hard links
         # -n  dry-run only
         # --timeout=300
@@ -240,7 +241,7 @@ sub _run {
         #     is when deletes happen
 
         # order of exclude/filter options is IMPORTANT
-        my $command = "${rsync} -rlptgoDzhiOJH --numeric-ids --stats --timeout=300 ";
+        my $command = "${rsync} -rlptgoDzhiOJHXX --super --numeric-ids --stats --timeout=300 ";
         $command .= "-n " unless ($update);
         $command .= "--checksum " if ($self->{'_options'}->{'paranoid'});
         $command .= "--bwlimit=${\$self->{'_options'}->{'bandwidth-limit'}} " if ($self->{'_options'}->{'bandwidth-limit'});
