@@ -319,13 +319,10 @@ sub _parser {
         HOSTNAME: /[a-z][a-z0-9\-]*/i
 
         # FQDN don't have to be too picky, result is gethostbyname'd. this is a
-        # character def, see "fqdn" rule farther down
-        FQDN: /[a-z][a-z0-9\-\.]+/i
-
-        # PORT is an optional number that changes what port on which the host
-        # expects to receive ssh connections. this is character a character
-        # def, see "port" rule farther down
-        PORT: /[0-9]+/
+        # character def, see "fqdn" rule farther down. this just looks to see
+        # that the name starts with a letter, is maybe followed by some more
+        # letters, numbers or characters.
+        FQDN: /[a-z][a-z0-9\-\.]*(?:\:[0-9]+)?/i
 
         # these rules just make prettier automatic error messages
         platform:          ALPHANAME
@@ -374,12 +371,6 @@ sub _parser {
 
           | <error:$my_error>
 
-        # for port we just use it as it should already be a valid number
-        port:
-              PORT
-                { $return = $item{'PORT'} }
-            | <error>
-
         # for variable_name we make sure it is not a duplicate. each of the
         # actions is evaluted and if true, continues to the next. a local
         # variable is used to build custom error message.
@@ -416,21 +407,13 @@ sub _parser {
 
         host_identifier:
             hostname '/' flags '[' platform '\@' fqdn ']'
-                { $return = {
+                { my ($fqdn, $port) = split(/:/x, $item{'fqdn'});
+                  $return = {
                              'hostname' => $item{'hostname'},
-                             'port'     => 22,
+                             'port'     => $port || 22,
                              'platform' => $item{'platform'},
                              'flags'    => $item{'flags'},
-                             'fqdn'     => $item{'fqdn'},
-                           };
-                }
-          | hostname '/' flags '[' platform '\@' fqdn ':' port ']'
-                { $return = {
-                             'hostname' => $item{'hostname'},
-                             'port'     => $item{'port'},,
-                             'platform' => $item{'platform'},
-                             'flags'    => $item{'flags'},
-                             'fqdn'     => $item{'fqdn'},
+                             'fqdn'     => $fqdn,
                            };
                 }
           | <error>
