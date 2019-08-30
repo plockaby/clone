@@ -32,7 +32,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'aca-test1'
+                           'hostname' => 'aca-test1',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -61,7 +62,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'agora'
+                           'hostname' => 'agora',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -98,7 +100,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'agora'
+                           'hostname' => 'agora',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -134,7 +137,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'agora'
+                           'hostname' => 'agora',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -161,7 +165,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'agora'
+                           'hostname' => 'agora',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -188,7 +193,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'ad-dbdev-uwtc-21'
+                           'hostname' => 'ad-dbdev-uwtc-21',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -276,7 +282,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => '',
-                           'hostname' => 'ad-dbdev-uwtc-21'
+                           'hostname' => 'ad-dbdev-uwtc-21',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -312,7 +319,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => 'r',
-                           'hostname' => 'ad-dbdev-uwtc-21'
+                           'hostname' => 'ad-dbdev-uwtc-21',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -340,7 +348,8 @@ is_deeply($result, [
                                           }
                                         ],
                            'flags' => '',
-                           'hostname' => 'aca-test1'
+                           'hostname' => 'aca-test1',
+                           'port' => 22,
                          }
                        ],
             'key' => '_HOSTS_'
@@ -356,5 +365,32 @@ $result = $parser->parse(q|
     }
 |);
 ok(!defined($result), "invalid flags");
+
+$parser = App::Clone::Parser::_parser();
+$App::Clone::Parser::OPTIONS = { 'skip_lookups' => 1 };
+$result = $parser->parse(q|
+    _HOSTS_ = {
+        aca-test1/r [debian8 @foo.example.com:722] = $ACATEST_RHEL6_NS
+    }
+|);
+is_deeply($result, [
+          {
+            'values' => [
+                         {
+                           'fqdn' => 'foo.example.com',
+                           'platform' => 'debian8',
+                           'sources' => [
+                                          {
+                                            'variable' => '$ACATEST_RHEL6_NS'
+                                          }
+                                        ],
+                           'flags' => 'r',
+                           'hostname' => 'aca-test1',
+                           'port' => 722,
+                         }
+                       ],
+            'key' => '_HOSTS_'
+          }
+], "port number");
 
 done_testing();

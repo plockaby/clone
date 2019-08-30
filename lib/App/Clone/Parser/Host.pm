@@ -11,6 +11,7 @@ use warnings FATAL => 'all';
 
     my $host = App::Clone::Parser::Host->new(
         'hostname' => 'example',
+        'port'     => 22,
         'platform' => 'debian8',
         'flags'    => 'r',
         'fqdn'     => 'foo.example.com'
@@ -27,6 +28,7 @@ sub new {
     return bless({
         '_platform' => $args{'platform'},
         '_hostname' => $args{'hostname'},
+        '_port'     => $args{'port'},
         '_flags'    => $args{'flags'},
         '_fqdn'     => $args{'fqdn'},
         '_paths'    => $args{'paths'},
@@ -44,6 +46,17 @@ Returns the hostname of the host.
 sub hostname {
     my $self = shift;
     return $self->{'_hostname'};
+}
+
+=item B<port>
+
+Returns the port number on which SSH runs on the host.
+
+=cut
+
+sub port {
+    my $self = shift;
+    return $self->{'_port'};
 }
 
 =pod

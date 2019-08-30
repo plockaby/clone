@@ -110,16 +110,11 @@ sub host {
 sub _load_results {
     my ($self, $results) = @_;
 
-    # find the value to _DIR_ so it can be prepended to all paths
-    # this author hates special cases but here it is the first of two
-    my ($dir) = grep { $_->{'key'} eq '_DIR_' } @{$results};
-    my $prefix = $dir->{'values'};
-
     # find the value to _HOSTS_, another special case
     my ($hosts) = grep { $_->{'key'} eq '_HOSTS_'} @{$results};
 
-    # now remove _DIR_ and _HOSTS_ from $results so we can parse out real paths
-    $self->_load_paths([ grep { $_->{'key'} !~ /^(?:_DIR_|_HOSTS_)$/x } @{$results} ]);
+    # now remove _HOSTS_ from $results so we can parse out real paths
+    $self->_load_paths([ grep { $_->{'key'} !~ /^(?:_HOSTS_)$/x } @{$results} ]);
 
     # now that all of the paths and variables are defined, let's load the hosts
     $self->_load_hosts($hosts);
@@ -290,96 +285,103 @@ sub _load_host_path {
 
 sub _parser {
     return Parse::RecDescent->new(q@
-        # Startup actions must be before any rules.
+        # startup actions must be before any rules
         {
            my %all_varnames = ();
-           my %all_fqdn = ();
-           my %all_hostname = ();
+           my %all_fqdns = ();
+           my %all_hostnames = ();
         }
         <warn>
 
-        # Rules in all caps are character set definitions. Typically are mapped
+        # rules in all caps are character set definitions. typically are mapped
         # to prettier names in other rules for prettier errors or to add
         # actions.
 
-        # Self explanatory.
+        # self explanatory
         EOF : /\Z/
 
-        # An empty block might contain commented lines.
+        # an empty block might contain commented lines
         EMPTY : /(\s*|#[^\n]*)*/
 
-        # ALPHANAME must start with alpha, never '_'.
+        # ALPHANAME must start with alpha, never '_'
         ALPHANAME : /[a-z][\w\-\.]*/i
 
         # DIRECTORY_PATHs must have at least one slash or there is ambiguity
-        # with variable names.
+        # with variable names
         DIRECTORY_PATH_ABS : /\/\w[\w\-\.\/]*/
         DIRECTORY_PATH_REL : /\w[\w\-\.]*\/[\w\-\.\/]*/
 
-        # DIR_SUFFIX old parser used \w definition, must not contain '/'.
+        # DIR_SUFFIX old parser used \w definition, must not contain '/'
         DIR_SUFFIX: /[\w\-\.]+/
 
         # HOSTNAME is typically short hostname so should agree with first part
-        # of FQDN.
+        # of FQDN
         HOSTNAME: /[a-z][a-z0-9\-]*/i
 
-        # FQDN don't have to be too picky, result is gethostbyname'd. This is
-        # character def, see "fqdn" rule further down.
+        # FQDN don't have to be too picky, result is gethostbyname'd. this is a
+        # character def, see "fqdn" rule farther down
         FQDN: /[a-z][a-z0-9\-\.]+/i
 
-        # These rules just make prettier automatic error messages.
+        # PORT is an optional number that changes what port on which the host
+        # expects to receive ssh connections. this is character a character
+        # def, see "port" rule farther down
+        PORT: /[0-9]+/
+
+        # these rules just make prettier automatic error messages
         platform:          ALPHANAME
         directory_suffix:  DIR_SUFFIX
 
         # disambiguation required: paths end on whitespace, be greedy to a possible \s
-        absolute_path:    DIRECTORY_PATH_ABS /\s*/ { $return = $item[1] }
-        relative_path:    DIRECTORY_PATH_REL /\s*/ { $return = $item[1] }
+        absolute_path:     DIRECTORY_PATH_ABS /\s*/ { $return = $item[1] }
+        relative_path:     DIRECTORY_PATH_REL /\s*/ { $return = $item[1] }
 
-
-        # For hostname we make sure it is not a duplicate. Each of the actions
-        # is evaluted and if true, continues to the next. A local variable is
+        # for hostname we make sure it is not a duplicate. each of the actions
+        # is evaluted and if true, continues to the next. a local variable is
         # used to build custom error message.
         hostname:
-            <rulevar: $my_error = "">    # This production always fails, but sets local variable
+            <rulevar: $my_error = "">    # this production always fails, but sets local variable
           | HOSTNAME
                 { $my_error = "Duplicate hostname " . $item{'HOSTNAME'};
-                  $all_hostname{$item{'HOSTNAME'}} ? undef : 1 }
+                  $all_hostnames{$item{'HOSTNAME'}} ? undef : 1 }
 
                 # Final action we have a good HOSTNAME, note it and return it.
-                { $all_hostname{$item{'HOSTNAME'}} = 1; $return = $item{'HOSTNAME'} }
+                { $all_hostnames{$item{'HOSTNAME'}} = 1; $return = $item{'HOSTNAME'} }
 
           | <error:$my_error>
-
 
         # 'r' = has no impact whatsoever but is allowed to be set
         # 'X' = will only clone if forced
         # '~' = don't delete things on the remote side
-        flags:    # Here we are using lookahead for '[' in order to trap incorrect flags here rather than outer rule
+        flags:    # here we are using lookahead for '[' in order to trap incorrect flags here rather than outer rule
             /[rZ~]*/ ...'['
                 { $return = $item[1]; }
         | <error>
 
-
-        # For fqdn we make sure it is in DNS, not a duplicate. Each of the
-        # actions is evaluted and if true, continues to the next. A local
+        # for fqdn we make sure it is in DNS, not a duplicate. each of the
+        # actions is evaluted and if true, continues to the next. a local
         # variable is used to build custom error message.
         fqdn:
-            <rulevar: $my_error = "">    # This production always fails, but sets local variable
+            <rulevar: $my_error = "">    # this production always fails, but sets local variable
           | FQDN
                 { $my_error = "Invalid FQDN: " . $item{'FQDN'} . " not found in DNS";
                   $App::Clone::Parser::OPTIONS->{'skip_lookups'} ? 1 : gethostbyname($item{'FQDN'}) ? 1 : undef }
 
                 { $my_error = "Duplicate FQDN found " . $item{'FQDN'};
-                  $all_fqdn{$item{'FQDN'}} ? undef : 1 }
+                  $all_fqdns{$item{'FQDN'}} ? undef : 1 }
 
                 # Final action we have a good FQDN, note it and return it.
-                { $all_fqdn{$item{'FQDN'}} = 1; $return = $item{'FQDN'} }
+                { $all_fqdns{$item{'FQDN'}} = 1; $return = $item{'FQDN'} }
 
           | <error:$my_error>
 
+        # for port we just use it as it should already be a valid number
+        port:
+              PORT
+                { $return = $item{'PORT'} }
+            | <error>
 
-        # For variable_name we make sure it is not a duplicate. Each of the
-        # actions is evaluted and if true, continues to the next. A local
+        # for variable_name we make sure it is not a duplicate. each of the
+        # actions is evaluted and if true, continues to the next. a local
         # variable is used to build custom error message.
         variable_name:
             <rulevar: $my_error = "">    # This production always fails, but sets local variable
@@ -389,15 +391,12 @@ sub _parser {
 
                 # Final action we have a good ALPHANAME, note it and return it.
                 { $all_varnames{$item{'ALPHANAME'}} = 1; $return = $item{'ALPHANAME'} }
-
           | <error:$my_error>
 
-
-        dollar_variable:              # Expansion of variable_name
+        dollar_variable:              # expansion of variable_name
            '$' <commit> ALPHANAME
                { $return = '$'.$item{'ALPHANAME'} }
-         | <error?> <reject>          # Only error if we definitely have a $ sign
-
+         | <error?> <reject>          # only error if we definitely have a $ sign
 
         nested_host_value:
             dollar_variable
@@ -405,7 +404,6 @@ sub _parser {
           | relative_path
                 { $return = { 'path' => $item{'relative_path'} } }
           | <error>
-
 
         host_value:
             dollar_variable
@@ -416,18 +414,26 @@ sub _parser {
                  { $return = $item{'nested_host_value(s)'} }
           | <error>
 
-
         host_identifier:
             hostname '/' flags '[' platform '\@' fqdn ']'
                 { $return = {
                              'hostname' => $item{'hostname'},
+                             'port'     => 22,
+                             'platform' => $item{'platform'},
+                             'flags'    => $item{'flags'},
+                             'fqdn'     => $item{'fqdn'},
+                           };
+                }
+          | hostname '/' flags '[' platform '\@' fqdn ':' port ']'
+                { $return = {
+                             'hostname' => $item{'hostname'},
+                             'port'     => $item{'port'},,
                              'platform' => $item{'platform'},
                              'flags'    => $item{'flags'},
                              'fqdn'     => $item{'fqdn'},
                            };
                 }
           | <error>
-
 
         host:
             host_identifier '=' host_value
@@ -437,12 +443,10 @@ sub _parser {
                   $return =  $item{'host_identifier'} }
           | <error>
 
-
         directory_suffixes:
             '(' <commit> directory_suffix(s) ')'
                 { $return = $item{'directory_suffix(s)'} }
           | <error?><reject>  # directory_suffixes optional: only error if committed by presence of open paren
-
 
         nested_value:
             dollar_variable
@@ -455,7 +459,6 @@ sub _parser {
                               'values' => $item{'variable_value'} } }
           | <error>
 
-
         variable_value:
             dollar_variable
                 { $return = [ { 'variable' => $item{'dollar_variable'} } ] }
@@ -467,14 +470,10 @@ sub _parser {
                 { $return = $item{'nested_value(s)'} }
           | <error>
 
-
         definition:
             '_HOSTS_' <commit> '=' '{' host(s) '}'
                 { $return = { 'key' => $item[1],
                               'values' => $item{'host(s)'} } }
-          | '_DIR_' <commit> '=' absolute_path
-                { $return = { 'key' => $item[1],
-                              'values' => $item{'absolute_path'} } }
           | variable_name directory_suffixes(?) '=' variable_value
                 { $return = { 'key' => $item{'variable_name'},
                               'suffixes' => $item{'directory_suffixes(?)'},
@@ -485,12 +484,11 @@ sub _parser {
                               'values' => $item{'variable_value'} } }
           |  <error>
 
-
         file:
             definition(s) EOF
                 { $return = $item{'definition(s)'} }
 
-        # The Parse Party starts here
+        # the Parse Party starts here
         parse: <skip:'(\s+|#[^\n]*)*'> file
 
     @);
