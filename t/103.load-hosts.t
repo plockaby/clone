@@ -22,6 +22,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'debian8/zzz',
@@ -71,6 +72,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',
@@ -123,6 +125,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',
@@ -169,6 +172,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',
@@ -217,6 +221,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',
@@ -277,6 +282,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',
@@ -324,6 +330,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/bar',
@@ -394,6 +401,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'common/activemq3.4.5',
@@ -465,6 +473,7 @@ is_deeply($result, bless({
             '_hostname' => 'zzz',
             '_flags'    => 'r',
             '_fqdn'     => 'localhost',
+            '_port'     => 22,
             '_platform' => 'debian8',
             '_paths'    => [
                 'asdf/fdsa',

@@ -205,6 +205,7 @@ sub _load_hosts {
         my $hostname = $host->{'hostname'};
         my $platform = $host->{'platform'};
         my $fqdn = $host->{'fqdn'};
+        my $port = $host->{'port'};
 
         # compile the list of trees into a list of paths
         my $paths = $self->_parse_path({ 'key' => $hostname, 'values' => $host->{'sources'} }, undef, undef, $hostname);
@@ -231,6 +232,7 @@ sub _load_hosts {
             'platform' => $platform,
             'flags'    => $host->{'flags'},
             'fqdn'     => $fqdn,
+            'port'     => $port,
             'paths'    => [sort @paths],
         );
     }
