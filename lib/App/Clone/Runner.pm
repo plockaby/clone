@@ -246,7 +246,7 @@ sub _run {
         $command .= "--checksum " if ($self->{'_options'}->{'paranoid'});
         $command .= "--bwlimit=${\$self->{'_options'}->{'bandwidth-limit'}} " if ($self->{'_options'}->{'bandwidth-limit'});
         $command .= "--delete-during ";
-        $command .= "--rsh=\"${ssh} -l ${user} -i ${key}\" ";
+        $command .= "--rsh=\"${ssh} -l ${user} -i ${key} -p ${\$host->port()}\" ";
         $command .= "--exclude=${home}/updates ";
         $command .= "--filter=\"merge ${builds}/filter_\" ";
         $command .= "--rsync-path=\"${sudo} ${rsync} --log-file=${home}/updates\" ";
@@ -269,7 +269,7 @@ sub _run {
 
     # run remote commands
     if ($update) {
-        my $command = "${ssh} -l ${user} -i ${key} ${\$host->fqdn()} ${sudo} ${home}/tools/process-updates ";
+        my $command = "${ssh} -l ${user} -i ${key} -p ${\$host->port()} ${\$host->fqdn()} ${sudo} ${home}/tools/process-updates ";
         $command .= "--updates=${home}/updates ";
         $command .= "--commands=${home}/commands ";
         $command .= "--scripts=${home}/tools/scripts ";
