@@ -1,9 +1,10 @@
 # vi:syntax=python
 from pushlib.modules.perl import *
-from pushlib.tools import copy, abort
+from pushlib.tools import copy
 env.clone_path = "push/clone"
 env.host_path = "/clone"
 env.host_user = "root"
+
 
 class BuildTask(BuildTask):
     def after(self, c):
